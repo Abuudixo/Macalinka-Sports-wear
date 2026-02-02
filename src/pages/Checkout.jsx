@@ -1,31 +1,74 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { ordersAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { CreditCard, Lock, CheckCircle } from 'lucide-react';
 
 const Checkout = () => {
     const { cartItems, cartTotal, clearCart } = useCart();
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(false);
+    const [error, setError] = useState(null);
 
-    const shipping = 7.99;
+    // Form refs
+    const fullNameRef = useRef();
+    const streetRef = useRef();
+    const cityRef = useRef();
+    const stateRef = useRef();
+    const zipRef = useRef();
+
+    const shipping = cartTotal > 150 ? 0 : 7.99;
     const taxRate = 0.08;
     const tax = cartTotal * taxRate;
     const total = cartTotal + shipping + tax;
 
-    const handlePayment = (e) => {
+    const handlePayment = async (e) => {
         e.preventDefault();
+
+        if (!isAuthenticated) {
+            navigate('/login');
+            return;
+        }
+
         setIsProcessing(true);
-        // Simulate payment
-        setTimeout(() => {
-            setIsProcessing(false);
+        setError(null);
+
+        try {
+            const orderData = {
+                items: cartItems.map(item => ({
+                    product: item.id || item._id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    size: item.size || 'M',
+                    image: item.image
+                })),
+                shippingAddress: {
+                    fullName: fullNameRef.current?.value || user?.name || 'Guest',
+                    street: streetRef.current?.value || '123 Football Way',
+                    city: cityRef.current?.value || 'Houston',
+                    state: stateRef.current?.value || 'TX',
+                    zip: zipRef.current?.value || '77001'
+                },
+                paymentMethod: 'card',
+                subtotal: cartTotal,
+                shipping,
+                tax,
+                total
+            };
+
+            await ordersAPI.create(orderData);
             setOrderSuccess(true);
             clearCart();
-        }, 2000);
+        } catch (err) {
+            setError(err.message || 'Failed to process order');
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     if (orderSuccess) {
@@ -40,6 +83,22 @@ const Checkout = () => {
                     <Link to="/shop">
                         <Button size="lg" className="w-full uppercase tracking-wider">
                             Back to Shop
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return (
+            <div className="pt-32 pb-20 container-custom mx-auto min-h-screen text-center">
+                <div className="max-w-md mx-auto bg-dark-800 p-12 rounded-2xl border border-white/5 shadow-2xl">
+                    <h1 className="text-3xl font-black uppercase mb-4">Sign In Required</h1>
+                    <p className="text-gray-400 mb-8">Please sign in to complete your purchase.</p>
+                    <Link to="/login">
+                        <Button size="lg" className="w-full uppercase tracking-wider">
+                            Sign In
                         </Button>
                     </Link>
                 </div>
@@ -63,6 +122,13 @@ const Checkout = () => {
 
                 {/* Left Column: Forms */}
                 <div className="flex-grow space-y-8">
+                    {error && (
+                        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg flex items-center gap-3">
+                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                            {error}
+                        </div>
+                    )}
+
                     {/* Step 1: Shipping Info */}
                     <div className="bg-dark-800 p-8 rounded-lg shadow-sm border border-white/5">
                         <div className="flex items-center gap-4 mb-6">
@@ -75,21 +141,22 @@ const Checkout = () => {
                                 <label className="text-xs font-bold uppercase text-gray-400">Full Name</label>
                                 <input
                                     type="text"
+                                    ref={fullNameRef}
                                     className="w-full bg-dark-700 border border-white/10 rounded-md p-3 focus:outline-none focus:border-primary text-white"
                                     defaultValue={user?.name || "John Doe"}
                                 />
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <label className="text-xs font-bold uppercase text-gray-400">Street Address</label>
-                                <input type="text" className="w-full bg-dark-700 border border-white/10 rounded-md p-3 focus:outline-none focus:border-primary text-white" defaultValue="123 Football Way" />
+                                <input type="text" ref={streetRef} className="w-full bg-dark-700 border border-white/10 rounded-md p-3 focus:outline-none focus:border-primary text-white" defaultValue="123 Football Way" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase text-gray-400">City</label>
-                                <input type="text" className="w-full bg-dark-700 border border-white/10 rounded-md p-3 focus:outline-none focus:border-primary text-white" defaultValue="Houston" />
+                                <input type="text" ref={cityRef} className="w-full bg-dark-700 border border-white/10 rounded-md p-3 focus:outline-none focus:border-primary text-white" defaultValue="Houston" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase text-gray-400">State</label>
-                                <select className="w-full bg-dark-700 border border-white/10 rounded-md p-3 focus:outline-none focus:border-primary text-white appearance-none">
+                                <select ref={stateRef} className="w-full bg-dark-700 border border-white/10 rounded-md p-3 focus:outline-none focus:border-primary text-white appearance-none">
                                     <option>TX</option>
                                     <option>CA</option>
                                     <option>NY</option>
@@ -97,7 +164,7 @@ const Checkout = () => {
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase text-gray-400">Zip Code</label>
-                                <input type="text" className="w-full bg-dark-700 border border-white/10 rounded-md p-3 focus:outline-none focus:border-primary text-white" defaultValue="77001" />
+                                <input type="text" ref={zipRef} className="w-full bg-dark-700 border border-white/10 rounded-md p-3 focus:outline-none focus:border-primary text-white" defaultValue="77001" />
                             </div>
                         </div>
                     </div>
@@ -109,9 +176,9 @@ const Checkout = () => {
                             <h2 className="text-2xl font-black uppercase">Shipping Method</h2>
                         </div>
                         <div className="space-y-4">
-                            <div className="border-2 border-primary rounded-lg p-4 flex justify-between items-center cursor-pointer bg-primary/10">
+                            <div className={`border-2 rounded-lg p-4 flex justify-between items-center cursor-pointer ${shipping === 7.99 ? 'border-primary bg-primary/10' : 'border-white/10'}`}>
                                 <div className="flex items-center gap-3">
-                                    <div className="w-5 h-5 rounded-full border-4 border-primary bg-white"></div>
+                                    <div className={`w-5 h-5 rounded-full border-4 ${shipping === 7.99 ? 'border-primary bg-white' : 'border-gray-500 bg-transparent'}`}></div>
                                     <div>
                                         <p className="font-bold text-white">Standard US Shipping</p>
                                         <p className="text-xs text-gray-400">3-5 business days</p>
@@ -119,15 +186,15 @@ const Checkout = () => {
                                 </div>
                                 <span className="font-bold text-white">$7.99</span>
                             </div>
-                            <div className="border border-white/10 rounded-lg p-4 flex justify-between items-center cursor-pointer hover:border-white/30 transition-colors">
+                            <div className={`border-2 rounded-lg p-4 flex justify-between items-center cursor-pointer ${shipping === 0 ? 'border-primary bg-primary/10' : 'border-white/10'}`}>
                                 <div className="flex items-center gap-3">
-                                    <div className="w-5 h-5 rounded-full border border-gray-500 bg-transparent"></div>
+                                    <div className={`w-5 h-5 rounded-full border-4 ${shipping === 0 ? 'border-primary bg-white' : 'border-gray-500 bg-transparent'}`}></div>
                                     <div>
-                                        <p className="font-bold text-white">Expedited Shipping</p>
-                                        <p className="text-xs text-gray-400">1-2 business days</p>
+                                        <p className="font-bold text-white">Free Prime Shipping</p>
+                                        <p className="text-xs text-gray-400">Orders over $150</p>
                                     </div>
                                 </div>
-                                <span className="font-bold text-white">$19.99</span>
+                                <span className="font-bold text-green-500">FREE</span>
                             </div>
                         </div>
                     </div>

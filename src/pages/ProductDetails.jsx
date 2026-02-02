@@ -1,28 +1,54 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { products } from '../data/products';
+import { productsAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { useCart } from '../context/CartContext';
-import { Share2, ChevronRight, Truck, ShieldCheck, RefreshCw, Star, Plus, Minus } from 'lucide-react';
+import { Share2, ChevronRight, Truck, ShieldCheck, RefreshCw, Star, Plus, Minus, Loader2 } from 'lucide-react';
 
 const ProductDetails = () => {
     const { id } = useParams();
     const [product, setProduct] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [selectedSize, setSelectedSize] = useState('M');
     const [quantity, setQuantity] = useState(1);
     const { addToCart } = useCart();
 
     useEffect(() => {
-        // Simulate fetching
-        const found = products.find(p => p.id === parseInt(id));
-        setProduct(found);
+        const fetchProduct = async () => {
+            setLoading(true);
+            try {
+                const response = await productsAPI.getById(id);
+                setProduct(response.data || response);
+            } catch (err) {
+                console.error('Failed to fetch product:', err);
+            }
+            setLoading(false);
+        };
+        fetchProduct();
     }, [id]);
 
-    if (!product) {
-        return <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>;
+    if (loading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-dark-900 text-white">
+                <Loader2 className="w-12 h-12 mb-4 animate-spin text-primary" />
+                <p className="text-lg font-black uppercase tracking-widest">Loading Product...</p>
+            </div>
+        );
     }
 
-    const sizes = ['S', 'M', 'L', 'XL', '2XL'];
+    if (!product) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-dark-900 text-white">
+                <p className="text-xl font-bold uppercase mb-4">Product Not Found</p>
+                <Link to="/shop">
+                    <Button variant="outline">Back to Shop</Button>
+                </Link>
+            </div>
+        );
+    }
+
+    const sizes = product.sizes || ['S', 'M', 'L', 'XL', 'XXL'];
+    const productImage = product.images?.[0] || product.image;
 
     return (
         <div className="pt-24 pb-20 container-custom mx-auto min-h-screen">
@@ -40,15 +66,15 @@ const ProductDetails = () => {
                 <div className="space-y-4">
                     <div className="aspect-[4/5] bg-dark-800 rounded-xl overflow-hidden shadow-2xl shadow-black">
                         <img
-                            src={product.image}
+                            src={productImage}
                             alt={product.name}
                             className="w-full h-full object-cover"
                         />
                     </div>
                     <div className="grid grid-cols-4 gap-4">
-                        {[...Array(4)].map((_, i) => (
+                        {(product.images?.length > 0 ? product.images : [product.image]).map((img, i) => (
                             <div key={i} className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${i === 0 ? 'border-primary' : 'border-transparent hover:border-white/20'}`}>
-                                <img src={product.image} className="w-full h-full object-cover" />
+                                <img src={img} className="w-full h-full object-cover" />
                             </div>
                         ))}
                     </div>
@@ -97,7 +123,7 @@ const ProductDetails = () => {
                         <Button
                             size="lg"
                             className="w-full text-lg uppercase tracking-wider py-5"
-                            onClick={() => addToCart(product, quantity)}
+                            onClick={() => addToCart(product, quantity, selectedSize)}
                         >
                             Add to Cart - ${(product.price * quantity).toFixed(2)}
                         </Button>

@@ -7,7 +7,7 @@ import { useCart } from '../context/CartContext';
 const Cart = () => {
     const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
 
-    const shipping = 0.00;
+    const shipping = cartTotal > 150 || cartTotal === 0 ? 0 : 7.99;
     const taxRate = 0.08;
     const tax = cartTotal * taxRate;
     const total = cartTotal + shipping + tax;
@@ -45,9 +45,12 @@ const Cart = () => {
                             </div>
                             <div className="flex-grow">
                                 <div className="flex justify-between items-start mb-2">
-                                    <h3 className="font-bold text-lg text-white">{item.name}</h3>
+                                    <div className="flex flex-col">
+                                        <h3 className="font-bold text-lg text-white">{item.name}</h3>
+                                        <p className="text-xs text-primary font-bold uppercase tracking-widest mt-1">Size: {item.size}</p>
+                                    </div>
                                     <button
-                                        onClick={() => removeFromCart(item.id)}
+                                        onClick={() => removeFromCart(item.id, item._cartItemId)}
                                         className="text-gray-500 hover:text-red-500 transition-colors p-2 hover:bg-red-500/10 rounded-full"
                                     >
                                         <Trash2 className="w-5 h-5" />
@@ -59,7 +62,7 @@ const Cart = () => {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 hover:bg-white/10 rounded-md"
-                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                            onClick={() => updateQuantity(item.id, item.quantity - 1, item._cartItemId)}
                                         >
                                             <Minus className="w-4 h-4" />
                                         </Button>
@@ -68,7 +71,7 @@ const Cart = () => {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 hover:bg-white/10 rounded-md"
-                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                            onClick={() => updateQuantity(item.id, item.quantity + 1, item._cartItemId)}
                                         >
                                             <Plus className="w-4 h-4" />
                                         </Button>

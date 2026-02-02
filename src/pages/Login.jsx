@@ -8,21 +8,25 @@ import Logo from '../components/layout/Logo';
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login, loading } = useAuth();
+    const { login, loading, error: authError } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await login(email, password);
-            navigate('/dashboard');
+            const user = await login(email, password);
+            if (user?.role === 'admin') {
+                navigate('/admin');
+            } else {
+                navigate('/dashboard');
+            }
         } catch (error) {
             console.error('Login failed', error);
         }
     };
 
     return (
-        <div className="min-h-screen pt-24 pb-12 flex flex-col items-center justify-center container-custom mx-auto">
+        <div className="min-h-screen flex flex-col items-center justify-center container-custom mx-auto p-4">
             <div className="w-full max-w-md">
                 <div className="text-center mb-10">
                     <div className="flex justify-center mb-6">
@@ -33,6 +37,11 @@ const Login = () => {
                 </div>
 
                 <div className="bg-dark-800 p-8 rounded-2xl border border-white/5 shadow-2xl">
+                    {authError && (
+                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-500 text-sm font-bold uppercase tracking-wider animate-shake">
+                            {authError}
+                        </div>
+                    )}
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Email Address</label>

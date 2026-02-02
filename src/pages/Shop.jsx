@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
-import { products } from '../data/products';
+import { productsAPI } from '../services/api';
 import ProductCard from '../components/product/ProductCard';
-import { Filter, ChevronDown } from 'lucide-react';
+import { Filter, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -12,10 +12,26 @@ const Shop = () => {
     const initialSearch = queryParams.get('search') || '';
     const initialCategory = queryParams.get('category') || 'all';
 
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState(initialCategory);
-    const [priceRange, setPriceRange] = useState(200);
+    const [priceRange, setPriceRange] = useState(250);
     const [showFilters, setShowFilters] = useState(false);
     const [searchQuery, setSearchQuery] = useState(initialSearch);
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            setLoading(true);
+            try {
+                const response = await productsAPI.getAll();
+                setProducts(response.data || response || []);
+            } catch (err) {
+                console.error('Failed to fetch products:', err);
+            }
+            setLoading(false);
+        };
+        fetchProducts();
+    }, []);
 
     // Update state when URL changes
     useEffect(() => {
@@ -27,15 +43,16 @@ const Shop = () => {
     const categories = ['all', 'men', 'women', 'kids'];
 
     const filteredProducts = useMemo(() => {
+        if (!Array.isArray(products)) return [];
         return products.filter(product => {
             const categoryMatch = selectedCategory === 'all' || product.category === selectedCategory;
             const priceMatch = product.price <= priceRange;
             const searchMatch = !searchQuery ||
                 product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                product.description.toLowerCase().includes(searchQuery.toLowerCase());
+                (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()));
             return categoryMatch && priceMatch && searchMatch;
         });
-    }, [selectedCategory, priceRange, searchQuery]);
+    }, [products, selectedCategory, priceRange, searchQuery]);
 
     return (
         <div className="pt-24 pb-20 container-custom mx-auto min-h-screen">
@@ -62,13 +79,13 @@ const Shop = () => {
             <div className="flex flex-col lg:flex-row gap-12 relative">
                 {/* Sidebar Filters */}
                 <aside className={`
-                    fixed inset-0 z-40 bg-dark-900 p-6 lg:static lg:p-0 lg:w-64 lg:bg-transparent lg:block shrink-0 space-y-8 transition-transform duration-300 ease-in-out
-                    ${showFilters ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+                    fixed inset-y-0 left-0 z-50 w-[280px] bg-dark-900 p-6 shadow-2xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:bg-transparent lg:p-0 lg:w-64 lg:shadow-none lg:block
+                    ${showFilters ? 'translate-x-0' : '-translate-x-full'}
                 `}>
                     <div className="flex justify-between items-center lg:hidden mb-8">
                         <h2 className="text-2xl font-black uppercase">Filters</h2>
-                        <button onClick={() => setShowFilters(false)} className="text-white">
-                            <ChevronDown className="w-6 h-6 rotate-180" />
+                        <button onClick={() => setShowFilters(false)} className="text-gray-400 hover:text-white p-2">
+                            <ChevronDown className="w-6 h-6 rotate-90" />
                         </button>
                     </div>
 
@@ -119,23 +136,28 @@ const Shop = () => {
                 {/* Overlay for mobile filters */}
                 {showFilters && (
                     <div
-                        className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+                        className="fixed inset-0 bg-black/80 z-40 backdrop-blur-sm lg:hidden"
                         onClick={() => setShowFilters(false)}
                     />
                 )}
 
                 {/* Product Grid */}
                 <div className="flex-grow">
-                    {filteredProducts.length > 0 ? (
+                    {loading ? (
+                        <div className="h-96 flex flex-col items-center justify-center text-gray-400">
+                            <Loader2 className="w-12 h-12 mb-4 animate-spin text-primary" />
+                            <p className="text-lg font-bold uppercase tracking-widest">Loading Catalog...</p>
+                        </div>
+                    ) : filteredProducts.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                             {filteredProducts.map((product) => (
-                                <ProductCard key={product.id} product={product} />
+                                <ProductCard key={product._id || product.id} product={product} />
                             ))}
                         </div>
                     ) : (
                         <div className="h-96 flex flex-col items-center justify-center text-gray-400 border border-dashed border-white/10 rounded-lg bg-dark-800/50">
                             <Filter className="w-12 h-12 mb-4 opacity-50" />
-                            <p className="text-lg font-bold">No products found</p>
+                            <p className="text-lg font-bold uppercase tracking-widest">No products found</p>
                             <p className="text-sm">Try adjusting your filters.</p>
                         </div>
                     )}

@@ -20,7 +20,7 @@ const ProductCard = ({ product }) => {
             {/* Image Container */}
             <div className="relative h-96 overflow-hidden bg-dark-700">
                 <img
-                    src={product.image}
+                    src={product.images?.[0] || product.image}
                     alt={product.name}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
@@ -38,13 +38,13 @@ const ProductCard = ({ product }) => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            addToCart(product, 1);
+                            addToCart(product, 1, 'M');
                         }}
                         className="bg-white text-dark-900 p-3 rounded-full hover:bg-primary hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-300 delay-75"
                     >
                         <ShoppingCart className="w-5 h-5" />
                     </button>
-                    <Link to={`/product/${product.id}`} className="bg-white text-dark-900 p-3 rounded-full hover:bg-primary hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-300 delay-150">
+                    <Link to={`/product/${product._id || product.id}`} className="bg-white text-dark-900 p-3 rounded-full hover:bg-primary hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-300 delay-150">
                         <Eye className="w-5 h-5" />
                     </Link>
                 </div>
@@ -53,7 +53,7 @@ const ProductCard = ({ product }) => {
             {/* Product Info */}
             <div className="p-6">
                 <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">{product.category}</p>
-                <Link to={`/product/${product.id}`}>
+                <Link to={`/product/${product._id || product.id}`}>
                     <h3 className="text-lg font-bold text-white mb-2 group-hover:text-primary transition-colors line-clamp-1">{product.name}</h3>
                 </Link>
                 <div className="flex items-center justify-between">
